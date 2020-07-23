@@ -1,18 +1,18 @@
 # Modo-Quixel-Bridge-Kit
  Quixel Bridge for Modo
 
-This kit will enable a basic "Custom Disk Export" from Quixel Bridge for Modo 14.1 and above.
+This kit will enable a basic "Custom Disk Export" from Quixel Bridge into Modo 14.1 and above.
 
-Please see the original Quixel sammple for more info (python 2.7): 
+Please see the original Quixel sample for more info (python 2.7): 
 https://github.com/Quixel/Bridge-Python-Plugin
 
-To use, download the kit and place the QuixelBridge into your Modo Kits directory
+To use, download the kit and place the QuixelBridge folder into your Modo Kits directory
 Win: %appdata%/Luxology/Kits
 
 Launch Modo + Bridge
 In Bridge, in Export Settings, choose Export To > Custom Socket Export, with the port set to 24981 (the default)
 
-There is a config fragment in the kit so it will start automatically, otherwise in the kits menu at the top, press Quixel Bridge > Start
+There is a config fragment in the kit so it will start automatically when modo is launched, otherwise in the kits menu at the top, press Quixel Bridge > Start
 (you can also stop it from there if required.)
 
 
