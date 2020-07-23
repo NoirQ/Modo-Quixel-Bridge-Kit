@@ -8,7 +8,6 @@ https://github.com/Quixel/Bridge-Python-Plugin
 
 To use, download the kit and place the QuixelBridge into your Modo Kits directory
 Win: %appdata%/Luxology/Kits
-OSX: 
 
 Launch Modo + Bridge
 In Bridge, in Export Settings, choose Export To > Custom Socket Export, with the port set to 24981 (the default)
