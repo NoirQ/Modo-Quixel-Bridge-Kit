@@ -1,6 +1,10 @@
 MIT License
 
-Copyright (c) 2020 Ben
+Parts of this sample are Copyright (c) 2018 Quixel AB
+from repo:
+https://github.com/Quixel/Bridge-Python-Plugin
+
+All other Copyright (c) 2020 Ben Halling
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
