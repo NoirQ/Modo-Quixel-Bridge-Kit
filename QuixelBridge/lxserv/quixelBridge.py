@@ -10,9 +10,18 @@ import lx
 import lxifc
 import lxu
 import Queue
+import modo
 
+com_listener = None
+g_bNewMeshAdded = False
+g_newMaskAdded = False
+
+meshNames = []
+g_matGroupsAdded = []
 callback_queue = Queue.Queue() 
 interval = 1000
+
+
 
 host, port = '127.0.0.1', 24981 # The port number here is just an arbitrary number that's > 20000
 
@@ -125,20 +134,84 @@ class doTheWork(lxifc.Visitor):
 
 	def vis_Evaluate(self):
 		if self.importData is not None:
+			bAddedMesh = False
 			tSrv = lx.service.Thread()
 			tSrv.InitThread()
-			for mesh in self.importData["MeshList"]:
-				lx.eval("scene.open {%s} import" % mesh)
 			textstring = ""
-			for texture in self.importData["TextureList"]:
-				textstring = textstring + texture[0] + ";"
-			# not supported in the pbr command in 14.1
-			for texture in self.importData["packedTextures"]:
-				textstring = textstring + texture[0] + ";"
 
-			print textstring
-			lx.eval("shader.loadPBR path:{%s}" % textstring)
+			bDoMaterialMask = False
+			bDoSelectMesh = False
+			bDoImport = False
+
+			if "NewMats" in self.importData:
+				bDoMaterialMask = True
+
+			if "SelectList" in self.importData:
+				bDoSelectMesh = True	
+
+			if not bDoSelectMesh and not bDoMaterialMask:
+				bDoImport = True
+
+			# set the material mask to our new item.
+			if bDoMaterialMask:
+				print self.importData["NewMats"]
+				selectedMeshes = modo.Scene().selectedByType("mesh")
+				if len(selectedMeshes) > 0:
+					meshName = selectedMeshes[0].name
+					for material in self.importData["NewMats"]:
+						lx.eval("select.item {%s}" % material)
+						lx.eval("mask.setMesh {%s}" % meshName)
+
+
+			if bDoSelectMesh:
+				for mesh in self.importData["SelectList"]:
+					lx.eval("select.item {%s}" % mesh)
+					mMesh = modo.Mesh(mesh)
+					allUVs = mMesh.geometry.vmaps.uvMaps[0].name
+					lx.eval("vertMap.list txuv {%s}" % allUVs)
+			
+			if bDoImport:
+				for texture in self.importData["TextureList"]:
+					textstring = textstring + texture[0] + ";"
+				# not supported in the pbr command in 14.1
+				for texture in self.importData["packedTextures"]:
+					textstring = textstring + texture[0] + ";"
+
+				global g_bNewMeshAdded
+				if "MeshList" in self.importData and len(self.importData["MeshList"]) > 0:
+					for mesh in self.importData["MeshList"]:
+						g_bNewMeshAdded = True
+						lx.eval("!!scene.open {%s} import" % mesh)
+						print g_bNewMeshAdded
+						bAddedMesh = True
+						matCall = dict({"TextureList": self.importData["TextureList"], "packedTextures": self.importData["packedTextures"]})
+						global meshNames
+						print meshNames
+						#interval = 3000
+					if len(meshNames) > 0:
+						selectCall = dict({
+							"SelectList": meshNames
+							}
+							)
+
+						callback_queue.put(selectCall)
+						callback_queue.put(matCall)
+						meshNames = []
+
+				else:
+					global g_matGroupsAdded, g_newMaskAdded
+					g_newMaskAdded = True
+					lx.eval("shader.loadPBR path:{%s}" % textstring)
+					matCallback = dict({
+					"NewMats": g_matGroupsAdded
+					}
+					)
+					callback_queue.put(matCallback)
+					g_matGroupsAdded = []
+
 			tSrv.CleanupThread()
+
+			#g_bNewMeshAdded = False
 
 			
 
@@ -151,9 +224,12 @@ class visIdle (lxifc.Visitor):
 	def vis_Evaluate(self):
 		pSrv = lx.service.Platform()
 		callback = None
+		global interval
 		try:
 			callback = callback_queue.get(False) #doesn't block	
+			interval = 200
 		except Queue.Empty:
+			interval = 1000
 			pass
 		
 		if callback is not None:
@@ -161,6 +237,11 @@ class visIdle (lxifc.Visitor):
 			idleVis.importData = callback
 			doTheWork_com = lx.object.Unknown(idleVis)
 			pSrv.DoWhenUserIsIdle(doTheWork_com, lx.symbol.iUSERIDLE_ALWAYS)
+		else:
+			global g_bNewMeshAdded, meshNames, g_newMaskAdded
+			meshNames = []
+			g_bNewMeshAdded = False
+			g_newMaskAdded = False
 
 		# wait for next idle again
 		myVis = self
@@ -189,6 +270,27 @@ def StopThread():
 	threadServer = None
 	print "Stopping Quixel Bridge."
 
+class ItemAddedListener(lxifc.SceneItemListener):
+	def sil_ItemAdd(self,item):
+		global g_bNewMeshAdded, g_newMaskAdded
+		global meshNames
+		if g_bNewMeshAdded == True:
+			myItem = modo.Item(item)
+			if myItem.type == "mesh":
+
+				meshNames.append(myItem.name)
+
+
+		if g_newMaskAdded == True:
+			myItem = modo.Item(item)
+
+			if myItem.type == "mask":
+				g_matGroupsAdded.append(myItem.name)
+				
+
+
+
+
 
 class StartBridgeCMD(lxu.command.BasicCommand):
 	def __init__(self):
@@ -200,6 +302,13 @@ class StartBridgeCMD(lxu.command.BasicCommand):
 	def basic_Execute(self, msg, flags):
 		print "Starting Quixel Bridge"
 		StartThread()
+		listenerService = lx.service.Listener()
+		MyListen = ItemAddedListener()
+		global com_listener
+		if com_listener is None:
+			com_listener = lx.object.Unknown(MyListen)
+			listenerService.AddListener(com_listener)
+		return True
 
 class StopBridgeCMD(lxu.command.BasicCommand):
 	def __init__(self):
@@ -210,10 +319,18 @@ class StopBridgeCMD(lxu.command.BasicCommand):
 		return True
 	def basic_Execute(self, msg, flags):
 		StopThread()
+		listenerService = lx.service.Listener()
+		
+		global com_listener
+		if com_listener is not None:
+			listenerService.RemoveListener(com_listener)
+		return True
 
- 
+
 lx.bless(StartBridgeCMD, "quixelBridge.start")
 lx.bless(StopBridgeCMD, "quixelBridge.stop")
+
+
 
 
 
