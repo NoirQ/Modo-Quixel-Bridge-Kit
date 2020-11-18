@@ -15,12 +15,9 @@ import modo
 com_listener = None
 g_bNewMeshAdded = False
 g_newMaskAdded = False
-
-meshNames = []
+g_meshNames = []
 g_matGroupsAdded = []
 callback_queue = Queue.Queue() 
-interval = 1000
-
 
 
 host, port = '127.0.0.1', 24981 # The port number here is just an arbitrary number that's > 20000
@@ -154,7 +151,6 @@ class doTheWork(lxifc.Visitor):
 
 			# set the material mask to our new item.
 			if bDoMaterialMask:
-				print self.importData["NewMats"]
 				selectedMeshes = modo.Scene().selectedByType("mesh")
 				if len(selectedMeshes) > 0:
 					meshName = selectedMeshes[0].name
@@ -171,6 +167,9 @@ class doTheWork(lxifc.Visitor):
 					lx.eval("vertMap.list txuv {%s}" % allUVs)
 			
 			if bDoImport:
+				userSelectMesh = lx.eval("user.value quixelBridge.selectMesh ?")
+				userSetMask = lx.eval("user.value quixelBridge.setMaskMesh ?")
+
 				for texture in self.importData["TextureList"]:
 					textstring = textstring + texture[0] + ";"
 				# not supported in the pbr command in 14.1
@@ -182,31 +181,34 @@ class doTheWork(lxifc.Visitor):
 					for mesh in self.importData["MeshList"]:
 						g_bNewMeshAdded = True
 						lx.eval("!!scene.open {%s} import" % mesh)
-						print g_bNewMeshAdded
 						bAddedMesh = True
 						matCall = dict({"TextureList": self.importData["TextureList"], "packedTextures": self.importData["packedTextures"]})
-						global meshNames
-						print meshNames
+						global g_meshNames
 						#interval = 3000
-					if len(meshNames) > 0:
-						selectCall = dict({
-							"SelectList": meshNames
-							}
-							)
+					if userSelectMesh:
+						if len(g_meshNames) > 0:
+							selectCall = dict({
+								"SelectList": g_meshNames
+								}
+								)
 
-						callback_queue.put(selectCall)
-						callback_queue.put(matCall)
-						meshNames = []
+							callback_queue.put(selectCall)
+					# we still want to try and bring in the materials
+					callback_queue.put(matCall)
+					g_meshNames = []
 
 				else:
 					global g_matGroupsAdded, g_newMaskAdded
 					g_newMaskAdded = True
 					lx.eval("shader.loadPBR path:{%s}" % textstring)
-					matCallback = dict({
-					"NewMats": g_matGroupsAdded
-					}
-					)
-					callback_queue.put(matCallback)
+					# If the user has turned off "select mesh", if they import a mesh, the mask gets set to whatever they had selected, which is probably undesirable.
+					# So for the mask flag to work, select also should be on.
+					if userSetMask and userSelectMesh:
+						matCallback = dict({
+						"NewMats": g_matGroupsAdded
+						}
+						)
+						callback_queue.put(matCallback)
 					g_matGroupsAdded = []
 
 			tSrv.CleanupThread()
@@ -224,12 +226,12 @@ class visIdle (lxifc.Visitor):
 	def vis_Evaluate(self):
 		pSrv = lx.service.Platform()
 		callback = None
-		global interval
+		global interval, stepInterval
 		try:
 			callback = callback_queue.get(False) #doesn't block	
-			interval = 200
+			interval = stepInterval
 		except Queue.Empty:
-			interval = 1000
+			interval = mainInterval
 			pass
 		
 		if callback is not None:
@@ -238,8 +240,8 @@ class visIdle (lxifc.Visitor):
 			doTheWork_com = lx.object.Unknown(idleVis)
 			pSrv.DoWhenUserIsIdle(doTheWork_com, lx.symbol.iUSERIDLE_ALWAYS)
 		else:
-			global g_bNewMeshAdded, meshNames, g_newMaskAdded
-			meshNames = []
+			global g_bNewMeshAdded, g_meshNames, g_newMaskAdded
+			g_meshNames = []
 			g_bNewMeshAdded = False
 			g_newMaskAdded = False
 
@@ -273,12 +275,12 @@ def StopThread():
 class ItemAddedListener(lxifc.SceneItemListener):
 	def sil_ItemAdd(self,item):
 		global g_bNewMeshAdded, g_newMaskAdded
-		global meshNames
+		global g_meshNames
 		if g_bNewMeshAdded == True:
 			myItem = modo.Item(item)
 			if myItem.type == "mesh":
 
-				meshNames.append(myItem.name)
+				g_meshNames.append(myItem.name)
 
 
 		if g_newMaskAdded == True:
@@ -331,10 +333,7 @@ lx.bless(StartBridgeCMD, "quixelBridge.start")
 lx.bless(StopBridgeCMD, "quixelBridge.stop")
 
 
+mainInterval = lx.eval("user.value quixelBridge.bridgeInterval ?")
+stepInterval = lx.eval("user.value quixelBridge.bridgeStageInterval ?")
 
-
-
-
-
-
-
+interval = mainInterval
