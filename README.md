@@ -15,15 +15,12 @@ In Bridge, in Export Settings, choose Export To > Custom Socket Export, with the
 There is a config fragment in the kit so it will start automatically when modo is launched, otherwise in the kits menu at the top, press Quixel Bridge > Start
 (you can also stop it from there if required.)
 
+Surfaces will import using the Modo PBR loader. Some definitions are supplied as part of the kit, but you may want to adjust / enable these as required. 
 
-Exported meshes will prompt you with the Modo FBX importer dialog.
-Note:
-The texture locator for surfaces applied to meshes will not correctly set the uv map and polygon tag. So after import, you will need to change the polygon tag on the material to match the mesh, and set the Texture locator for the images to the UV Map and the correct map.
+If pushing a mesh, the select mesh option will select the mesh after import. Doing this will set the imported mateirals to be set to the selected UV map.
+If the UV map goes wrong, enter setup mode to change it.
 
-Surfaces will import using the Modo 14.1 PBR loader. Some definitions are supplied as part of the kit, but you may want to adjust / enable these as required. 
-
-Packed maps are not currently supported, and will just import as one shader tree layer.
-
+The set mask option will set the item mask on any newly added materials to the first selected item.
 
 
 
