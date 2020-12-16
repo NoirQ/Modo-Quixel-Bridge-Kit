@@ -9,7 +9,13 @@ import json, sys, socket, time, threading
 import lx
 import lxifc
 import lxu
-import Queue
+try:
+	#py3
+	import queue as q
+except ImportError:
+	import Queue as q
+
+
 import modo
 
 com_listener = None
@@ -17,7 +23,7 @@ g_bNewMeshAdded = False
 g_newMaskAdded = False
 g_meshNames = []
 g_matGroupsAdded = []
-callback_queue = Queue.Queue() 
+callback_queue = q.Queue() 
 
 
 host, port = '127.0.0.1', 24981 # The port number here is just an arbitrary number that's > 20000
@@ -120,7 +126,7 @@ def ms_asset_importer (imported_data):
 	
 	#Exception handling.
 	except Exception as e:
-		print "Failed"
+		print ("Failed")
 		print('Error Line : {}'.format(sys.exc_info()[-1].tb_lineno), type(e).__name__, e)
 		pass
 
@@ -230,7 +236,7 @@ class visIdle (lxifc.Visitor):
 		try:
 			callback = callback_queue.get(False) #doesn't block	
 			interval = stepInterval
-		except Queue.Empty:
+		except q.Empty:
 			interval = mainInterval
 			pass
 		
@@ -270,7 +276,7 @@ def StopThread():
 	global threadServer
 	threadServer.stopThread = True
 	threadServer = None
-	print "Stopping Quixel Bridge."
+	print ("Stopping Quixel Bridge.")
 
 class ItemAddedListener(lxifc.SceneItemListener):
 	def sil_ItemAdd(self,item):
@@ -302,7 +308,7 @@ class StartBridgeCMD(lxu.command.BasicCommand):
 	def basic_Enable(self, msg):
 		return True
 	def basic_Execute(self, msg, flags):
-		print "Starting Quixel Bridge"
+		print ("Starting Quixel Bridge")
 		StartThread()
 		listenerService = lx.service.Listener()
 		MyListen = ItemAddedListener()
