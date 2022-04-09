@@ -186,6 +186,7 @@ class doTheWork(lxifc.Visitor):
 				if "MeshList" in self.importData and len(self.importData["MeshList"]) > 0:
 					for mesh in self.importData["MeshList"]:
 						g_bNewMeshAdded = True
+						lx.eval("loaderOptions.fbx mergeWithExistingItems:false loadGeometry:true loadNormals:true loadMeshSmoothing:true loadBlendShapes:true loadPolygonParts:true loadSelectionSets:true loadMaterials:false invertMatTranAmt:false useMatTranColAsTranAmt:false changeTextureEffect:false loadCameras:true loadLights:true loadAnimation:true loadSampleAnimation:true loadSampleAnimationRate:FBXAnimSampleRate_x1 globalScalingFactor:1.0 importUnits:{defaultimport}")
 						lx.eval("!!scene.open {%s} import" % mesh)
 						bAddedMesh = True
 						matCall = dict({"TextureList": self.importData["TextureList"], "packedTextures": self.importData["packedTextures"]})
